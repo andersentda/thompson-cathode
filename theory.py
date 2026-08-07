@@ -18,7 +18,7 @@ import math
 
 import numpy as np
 
-from . import abduce as ab
+from . import abduce as ab, gloss
 from .coherence import overidentification_check, retrodiction_check
 from .design import (discriminating_design, enumerate_configs,
                      identifiability, identifying_design,
@@ -68,17 +68,26 @@ class CathodeAgent:
         self.theories: list[Theory] = []
         self.record: list[tuple[Config, dict]] = []
         self.configs = enumerate_configs()
+        self._screen_explained_at: int | None = None
 
     # ----------------------------------------------------------- helpers
 
     def run(self, cfg: Config, why: str = "") -> dict:
+        if cfg.detector == "screen" and self._screen_explained_at is None:
+            self._screen_explained_at = len(self.J.lines)
+            self.J.say("SETUP", "The screen: a beam that survives to the far end of "
+                                "the tube leaves a glowing spot where it lands. If "
+                                "something bends the beam, the spot moves, and I "
+                                "read the two directions apart — plate-shift is how "
+                                "far it moves toward whichever plate is charged, "
+                                "magnet-shift is how far it moves the way the coils "
+                                "pull. Every reading from here on reports both "
+                                "separately, whether or not either one is doing "
+                                "anything yet.")
         obs = self.world.run(cfg)
         self.record.append((cfg, obs))
-        shown = ", ".join(
-            f"{k}={v:.4g}" if isinstance(v, float) else f"{k}={v}"
-            for k, v in obs.items())
         self.J.say("BUILD", f"{cfg.label()}" + (f"   ({why})" if why else ""))
-        self.J.say("READS", shown)
+        self.J.say("READS", gloss.format_readings(obs))
         return obs
 
     def live(self):
@@ -149,8 +158,8 @@ class CathodeAgent:
                        if k in obs and sign == "+" and obs[k] == 0.0]
             if forbidden:
                 t.dead = True
-                t.death_reason = (f"forbade {', '.join(forbidden)}, which the "
-                                  f"apparatus plainly shows")
+                t.death_reason = (f"forbade {gloss.label_list(forbidden)}, which "
+                                  f"the apparatus plainly shows")
                 self.J.say("REFUTE", f"{t.name} is out: it {t.death_reason}. An "
                                      f"effect appearing where a theory says none "
                                      f"can exist is decisive — no fault in my "
@@ -161,8 +170,8 @@ class CathodeAgent:
                         kind="failed-prediction", observable=k,
                         detail="predicted-present-observed-absent",
                         context={"config": d.config, "theory": t}))
-                self.J.say("FLAG", f"{t.name} required {', '.join(missing)} and I "
-                                   f"see nothing. I am NOT counting that as a "
+                self.J.say("FLAG", f"{t.name} required {gloss.label_list(missing)} "
+                                   f"and I see nothing. I am NOT counting that as a "
                                    f"refutation yet: an absent effect is exactly "
                                    f"what a faulty apparatus also produces. Held "
                                    f"as an open anomaly.")
@@ -207,7 +216,8 @@ class CathodeAgent:
                                 "costs all of that. Before paying it, is there any "
                                 "way the prediction could fail while the theory "
                                 "stands?")
-            anomaly = ab.Anomaly(kind="failed-prediction", observable="spot_y",
+            anomaly = ab.Anomaly(kind="failed-prediction",
+                                 observable=gloss.label("spot_y"),
                                  detail="predicted-present-observed-absent",
                                  context={"config": cfg})
             for prop in ab.abduce(anomaly):

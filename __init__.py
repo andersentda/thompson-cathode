@@ -29,6 +29,7 @@ from itertools import product
 
 import numpy as np
 
+from . import gloss
 from .theory import PRESENT, ABSENT, UNCOMMITTED, Theory
 from .world import Config, component_catalogue
 
@@ -78,7 +79,7 @@ def discriminating_design(theories: list[Theory], configs: list[Config],
         score = splits / cfg.cost()
         who = " vs ".join(t.name for t in live)
         scored.append(Design(cfg, score,
-                             f"{', '.join(sorted(detail))} would differ between {who}"))
+                             f"{gloss.label_list(detail)} would differ between {who}"))
 
     scored.sort(key=lambda d: -d.score)
     return scored[:top]
@@ -136,7 +137,7 @@ def identifying_design(theory: Theory, configs: list[Config],
         if rank < n_par:
             continue                       # underdetermined, skip
         out.append(Design(cfg, cond / cfg.cost(),
-                          f"measures {' and '.join(keys)}: rank {rank} of "
+                          f"measures {gloss.label_list(keys)}: rank {rank} of "
                           f"{n_par} unknowns, so both are separable"))
     out.sort(key=lambda d: -d.score)
     return out[:top]
@@ -154,9 +155,9 @@ def underdetermined_report(theory: Theory, configs: list[Config],
         if sig in seen:
             continue
         seen.add(sig)
-        lines.append(f"{' + '.join(keys)} alone -> rank {rank} of "
+        lines.append(f"{gloss.label_list(keys)} alone -> rank {rank} of "
                      f"{len(theory.param_names)}: fixes only a combination of "
-                     f"{' and '.join(theory.param_names)}, never each separately")
+                     f"{gloss.param_list(theory.param_names)}, never each separately")
         if len(lines) >= n:
             break
     return lines
